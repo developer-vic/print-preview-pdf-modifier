@@ -548,21 +548,23 @@ class ContinuousPDFModifier {
             // Re-fetch iframe to access the form elements
             const iframeForm = shopifyTab.frameLocator('iframe[name="app-iframe"]');
 
-            // Set carrier select to LaPoste
-            const carrierSelect = iframeForm.locator('select#carrierselect');
-            await carrierSelect.scrollIntoViewIfNeeded();
-            await carrierSelect.selectOption({ value: 'laposte' });
-            console.log('✅ Set carrier to LaPoste');
-
             // Fill tracking input
             const trackingInput = iframeForm.locator('input[id="trackinginput"]');
             await trackingInput.scrollIntoViewIfNeeded();
             await trackingInput.fill(carrierText?.trim() || '');
             console.log(`✅ Filled tracking input: ${carrierText?.trim()}`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // // Step 10: Switch back to Packlink tab
-            // packlinkTab.bringToFront();
-            // console.log('📂 Switched back to Packlink tab');
+            // Set carrier select to LaPoste
+            const carrierSelect = iframeForm.locator('select#carrierselect');
+            await carrierSelect.scrollIntoViewIfNeeded();
+            await carrierSelect.selectOption({ value: 'laposte' });
+            console.log('✅ Set carrier to LaPoste');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Step 10: Switch back to Packlink tab
+            packlinkTab.bringToFront();
+            console.log('📂 Switched back to Packlink tab');
 
             // Keep tabs open and return true for now
             // Note: We're not closing tabs here to allow user to see the results
