@@ -1,6 +1,6 @@
 {
   "name": "print-preview-pdf-modifier",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Full-stack PDF modifier with backend API and frontend automation. Enhanced ShipEngine support and unified auto-print behavior.",
   "main": "server.js",
   "scripts": {
@@ -10,6 +10,7 @@
     "backend:dev": "nodemon backend/server.js",
     "frontend": "node frontend/index.js",
     "frontend:dev": "nodemon frontend/index.js",
+    "google:login": "node frontend/googleLogin.js",
     "install:all": "npm install && npm run install:backend && npm run install:frontend",
     "install:backend": "cd backend && npm install",
     "install:frontend": "cd frontend && npm install",

@@ -1,0 +1,53 @@
+const config = {
+    // Browser settings
+    browser: {
+        headless: false, // Set to true for headless mode
+        args: [
+            '--start-maximized', // Start browser maximized
+            '--disable-web-security', // Disable web security for broader access (use with caution)
+            '--disable-features=VizDisplayCompositor' // May help with some rendering issues
+        ]
+    },
+
+    // User credentials
+    credentials: {
+        email: 'your-packlink-email@example.com',
+        password: 'your-packlink-password'
+    },
+
+    // URLs
+    urls: {
+        login: 'https://auth.packlink.com/fr-FR/pro/login?tenant_id=PACKLINKPROFR',
+        main: 'https://pro.packlink.fr/private/shipments/ready-for-shipping'
+    },
+
+    // Text replacement settings
+    textReplacement: {
+        find: '20g',
+        replace: '50g'
+    },
+
+    // Backend service configuration
+    backendUrl: 'http://localhost:3000',
+
+    // Wait time after print button click (in milliseconds)
+    waitTime: 3000,
+
+    // Cookie file path
+    cookiePath: 'cookies.json',
+
+    // Shipment file path 
+    shipmentPath: 'shipments.txt',
+
+    // Shopify login automation settings
+    shopify: {
+        email: 'your-shopify-email@example.com',
+        password: 'your-shopify-password',
+        loginUrl: 'https://accounts.shopify.com/lookup',
+        loginUrl2: 'https://accounts.shopify.com/login',
+        homeUrl: "https://admin.shopify.com/store/YOUR-STORE-NAME/apps/YOUR-APP-NAME",
+        cookiePath: 'shopify-cookies.json',  
+    }
+};
+
+module.exports = config;
