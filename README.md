@@ -17,12 +17,13 @@ This tool automatically intercepts PDF files when they are accessed online, extr
 
 ### 🤖 Shipment Automation (v3.0)
 - **Multi-Platform Integration**: Automatically synchronizes orders between Shopify and Packlink
-- **Batch Processing**: Process multiple shipment IDs from a text file
+- **One-Click Processing**: Interactive button on Shopify order pages for on-demand automation
 - **Smart Login Management**: Automatic login with cookie persistence for both platforms
 - **Iframe Support**: Handles Shopify app iframes seamlessly
 - **Tracking Synchronization**: Auto-extracts tracking numbers and updates Shopify orders
 - **Carrier Management**: Automatically sets carrier to LaPoste in Shopify
 - **Tab Management**: Opens multiple tabs in the same browser window
+- **Event-Driven**: Button appears automatically when viewing order details
 
 ### 🖨️ Unified Auto-Print Behavior
 - **Consistent Experience**: All PDFs automatically trigger print dialog after modification
@@ -37,10 +38,11 @@ This tool automatically intercepts PDF files when they are accessed online, extr
 - **Comprehensive Logging**: Detailed console output for troubleshooting
 
 ### 🖥️ Browser Management (v3.0)
-- **Adaptive Viewport**: Automatically adjusts to screen size
+- **Maximized Window**: Browser starts maximized for optimal screen usage
 - **Persistent Context**: Uses persistent browser context for better tab management
 - **Multi-Tab Support**: All tabs open in the same browser window instance
 - **Cookie Persistence**: Separate cookie management for different platforms
+- **Action Timeouts**: Fast 5-second timeouts for responsive automation
 
 ## 🚀 Quick Start
 
@@ -150,11 +152,11 @@ npm run frontend:dev
 ├── backend/                    # Express.js API server
 ├── frontend/                   # Node.js automation scripts
 │   ├── index.js                # Main automation script
-│   ├── config.js               # Configuration file
-│   ├── shipments.txt           # Shipment IDs to process (one per line)
-│   ├── cookies.json            # Packlink cookies
-│   └── shopify-cookies.json    # Shopify cookies
-├── browser-data/               # Persistent browser context (created automatically)
+│   ├── config.js               # Configuration file (create from config.js.example)
+│   ├── config.js.example       # Example configuration template
+│   ├── cookies.json            # Packlink cookies (auto-generated)
+│   └── shopify-cookies.json    # Shopify cookies (auto-generated)
+├── browser-data/               # Persistent browser context (auto-generated)
 ├── scripts/                    # Launcher and utility scripts
 └── package.json                # Combined dependencies and scripts
 ```
@@ -169,16 +171,15 @@ npm run frontend:dev
 5. **Auto-Print**: The modified PDF is automatically displayed and triggers the print dialog
 
 ### Shipment Automation Flow
-1. **Initialization**: After Packlink login, system checks for shipment IDs in `shipments.txt`
-2. **Shopify Login**: Automatically logs into Shopify with cookie persistence
-3. **Batch Processing**: For each shipment ID:
-   - Opens Shopify tab and searches for the order in the table
-   - Clicks on the order to view details
+1. **Initialization**: After Packlink login, system logs into Shopify with cookie persistence
+2. **Shopify Setup**: A "Process with Packlink" button appears on order detail pages
+3. **On-Demand Processing**: When button is clicked on an order page:
+   - Extracts shipment ID from order page header
    - Opens Packlink tab and filters by shipment ID
    - Extracts tracking number from carrier section
    - Triggers print of shipping label
-   - Returns to Shopify and fills tracking number + sets carrier to LaPoste
-4. **Completion**: All tabs remain open for verification
+   - Returns to Shopify order page and fills tracking number + sets carrier to LaPoste
+4. **Completion**: All tabs remain open for verification; ready for next order
 
 ## 🔧 Configuration
 
@@ -191,7 +192,7 @@ All configuration is stored in `frontend/config.js`. This file contains:
   // Browser settings
   browser: {
     headless: false,
-    args: ['--disable-web-security', '--disable-features=VizDisplayCompositor']
+    args: ['--start-maximized', '--disable-web-security', '--disable-features=VizDisplayCompositor']
   },
   
   // Packlink credentials
@@ -215,16 +216,13 @@ All configuration is stored in `frontend/config.js`. This file contains:
   // Backend service
   backendUrl: 'http://localhost:3000',
   
-  // Shipment automation
-  shipmentPath: 'shipments.txt',
-  
   // Shopify integration
   shopify: {
     email: 'your-shopify-email@example.com',
     password: 'your-shopify-password',
     loginUrl: 'https://accounts.shopify.com/lookup',
     loginUrl2: 'https://accounts.shopify.com/login',
-    homeUrl: 'https://admin.shopify.com/store/YOUR-STORE/apps/scaniziorders',
+    homeUrl: 'https://admin.shopify.com/store/YOUR-STORE-NAME/apps/YOUR-APP-NAME',
     cookiePath: 'shopify-cookies.json'
   }
 }
@@ -238,16 +236,21 @@ All configuration is stored in `frontend/config.js`. This file contains:
    # Edit frontend/config.js with your credentials
    ```
 
-2. **Create shipment file**: Create `frontend/shipments.txt` with one shipment ID per line:
-   ```
-   168344
-   168345
-   168346
-   ```
+2. **Configure Shopify store URL**: Update the `shopify.homeUrl` in `config.js` with your actual Shopify store name and app name.
 
-3. **Configure Shopify store URL**: Update the `shopify.homeUrl` in `config.js` with your actual Shopify store name.
+3. **Run automation**: Start the app and navigate to Shopify order pages. Click the "Process with Packlink" button when ready to process an order.
 
-4. **Run automation**: The automation will automatically start after successful Packlink login if shipment IDs are found.
+### Using the Shipment Automation
+
+1. **Start the application**: Run `npm start` or `./setup.sh`
+2. **Login**: System automatically logs into both Packlink and Shopify
+3. **Navigate**: Go to any Shopify order detail page (URL containing `/orders/`)
+4. **Process**: Click the blue "Process with Packlink" button that appears in the top-right
+5. **Result**: System automatically:
+   - Opens Packlink, finds the shipment, and prints the label
+   - Returns to Shopify and fills in the tracking number
+   - Sets carrier to LaPoste
+   - Keeps tabs open for verification
 
 
 ## 📊 API Endpoints
@@ -283,6 +286,9 @@ This project combines dependencies from both backend and frontend:
 3. **Print Dialog Not Appearing**: Check browser permissions and popup blockers
 4. **Text Not Found**: Verify text replacement configuration in `frontend/config.js`
 5. **Configuration Not Loading**: Ensure `frontend/config.js` is properly formatted
+6. **Button Not Appearing**: Make sure you're on a Shopify order detail page (URL contains `/orders/`)
+7. **Button Click Not Working**: Wait for page to fully load (button appears 3-5 seconds after page load)
+8. **Login Issues**: Check credentials in `config.js` and delete `cookies.json` and `shopify-cookies.json` to force fresh login
 
 ### Debug Mode
 
@@ -292,6 +298,9 @@ Enable detailed logging by checking console output. The system provides comprehe
 - Text extraction results
 - PDF modification process
 - Print dialog triggering
+- Shipment automation progress
+- Button setup and triggers
+- Iframe navigation and element detection
 
 ## Security Notes
 
@@ -308,17 +317,19 @@ The project uses `concurrently` to run both services simultaneously during devel
 
 ### v3.0.0 (Current)
 - ✨ Added shipment automation system integrating Shopify and Packlink
-- ✨ Batch processing of shipment IDs from text file
+- ✨ Interactive button-based processing on Shopify order pages
 - ✨ Smart login management with cookie persistence for both platforms
 - ✨ Iframe support for Shopify app integration
 - ✨ Automatic tracking number extraction and synchronization
 - ✨ Carrier management (LaPoste) automation
-- ✨ Adaptive viewport based on screen size
+- ✨ Maximized browser window for optimal screen usage
 - ✨ Persistent browser context for better tab management
 - ✨ Multi-tab support in same browser window
+- ✨ Fast 5-second action timeouts for responsive automation
 - 🐛 Fixed execution context issues with iframe navigation
 - 🔧 Improved PDF interception with page-specific routing
 - 🔧 Enhanced error handling and logging
+- 🔧 Removed batch file processing in favor of on-demand button triggers
 
 ### v2.0.0
 - ✨ Added automatic PDF interception and modification
