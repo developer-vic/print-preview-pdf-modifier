@@ -36,9 +36,6 @@ const config = {
     // Cookie file path
     cookiePath: 'cookies.json',
 
-    // Shipment file path 
-    shipmentPath: 'shipments.txt',
-
     // Shopify login automation settings
     shopify: {
         email: 'your-shopify-email@example.com',

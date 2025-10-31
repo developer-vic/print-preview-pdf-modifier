@@ -13,6 +13,7 @@ class ContinuousPDFModifier {
         this.replaceText = config.textReplacement.replace;
         this.backendUrl = config.backendUrl || 'http://localhost:3000';
         this.cookiePath = config.cookiePath || 'cookies.json';
+        this.functionExposed = false;
     }
 
     async init() {
@@ -29,7 +30,8 @@ class ContinuousPDFModifier {
             this.browser = await chromium.launchPersistentContext(browserDataDir, {
                 headless: config.browser.headless,
                 args: config.browser.args,
-                viewport: { width: screenInfo.width, height: screenInfo.height }
+                viewport: { width: screenInfo.width, height: screenInfo.height },
+                actionTimeout: 5000  // 5 second timeout for clicks and actions
             });
 
             // Get or create the first page
@@ -335,26 +337,6 @@ class ContinuousPDFModifier {
         }
     }
 
-    async loadShipmentIDs() {
-        try {
-            const shipmentPath = config.shipmentPath;
-            if (await fs.pathExists(shipmentPath)) {
-                const content = await fs.readFile(shipmentPath, 'utf-8');
-                const ids = content.split('\n')
-                    .map(line => line.trim())
-                    .filter(line => line.length > 0);
-                console.log(`📋 Loaded ${ids.length} shipment IDs from ${shipmentPath}`);
-                return ids;
-            } else {
-                console.log(`📋 No shipment file found at ${shipmentPath}`);
-                return [];
-            }
-        } catch (error) {
-            console.error('❌ Error loading shipment IDs:', error.message);
-            return [];
-        }
-    }
-
     async loginToShopify(page) {
         console.log('🔐 Attempting Shopify login...');
 
@@ -424,7 +406,8 @@ class ContinuousPDFModifier {
             const currentUrl = shopifyTab.url();
 
             // Check if redirected to login
-            if (currentUrl.includes('https://accounts.shopify.com/lookup')) {
+            if (currentUrl.includes(config.shopify.loginUrl) ||
+                currentUrl.includes(config.shopify.loginUrl2)) {
                 console.log('🔐 Shopify cookies expired, attempting fresh login...');
                 const loginSuccess = await this.loginToShopify(shopifyTab);
                 if (!loginSuccess) {
@@ -451,66 +434,48 @@ class ContinuousPDFModifier {
         }
     }
 
-    async processShipment(shipmentID) {
+    async processShipmentFromOrderPage(shipmentID) {
         try {
-            console.log(`\n🔍 Processing shipment ID: ${shipmentID}`);
+            console.log(`\n🔍 Processing shipment ID from order page: ${shipmentID}`);
 
-            // Step 2: Open new tab and navigate to Shopify app
-            const shopifyTab = await this.browser.newPage();
-            console.log('📂 Opened new tab for Shopify');
+            // Get all open tabs
+            const pages = this.browser.pages();
 
-            await shopifyTab.goto(config.shopify.homeUrl);
-            await new Promise(resolve => setTimeout(resolve, 7000));
-
-            // Switch to iframe
-            const iframe = shopifyTab.frameLocator('iframe[name="app-iframe"]');
-            console.log('✅ Switched to iframe');
-
-            //wait for table to load
-            await iframe.locator('table.Polaris-IndexTable__Table.Polaris-IndexTable__Table--sticky').waitFor();
-            console.log('✅ Table loaded');
-
-            // Step 3: Search for shipment ID in table and click
-            const allTds = iframe.locator('td');
-            const count = await allTds.count();
-            console.log(`📄 Count: ${count}`);
-            let found = false;
-
-            for (let i = 0; i < count; i++) {
-                const td = allTds.nth(i);
-                const text = await td.textContent();
-                if (text && text.trim() === shipmentID) {
-                    await td.scrollIntoViewIfNeeded();
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    await td.click();
-                    found = true;
-                    console.log(`✅ Found and clicked shipment ID: ${shipmentID}`);
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                    break;
+            // Find the Shopify tab (should be one of the open tabs)
+            let shopifyTab = null;
+            for (const page of pages) {
+                const url = page.url();
+                if (url.includes('admin.shopify.com') && url.includes('orders')) {
+                    shopifyTab = page; //take last shopify page
                 }
             }
 
-            if (!found) {
-                console.log(`⚠️ Shipment ID ${shipmentID} not found in table`);
-                await shopifyTab.close();
+            if (!shopifyTab) {
+                console.log('⚠️ Could not find Shopify order tab');
                 return false;
             }
 
-            // Step 5: Open Packlink tab
+            // Switch to iframe on current order page
+            const iframe = shopifyTab.frameLocator('iframe[name="app-iframe"]');
+
+            // Wait a bit for page to be ready
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Open Packlink tab
             const packlinkTab = await this.browser.newPage();
             this.initPageInterceptor(packlinkTab);
             console.log('📂 Opened new tab for Packlink');
 
             await packlinkTab.goto(config.urls.main);
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            await new Promise(resolve => setTimeout(resolve, 3000));
 
-            // Step 6: Click filter button
+            // Click filter button
             const filterButton = await packlinkTab.locator('span[data-id="ICON-FILTER"]');
             await filterButton.click();
             console.log('✅ Clicked filter button');
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // Step 7: Enter shipment ID in filter
+            // Enter shipment ID in filter
             const shipmentInput = packlinkTab.locator('input[id="shipment_custom_reference"]');
             await shipmentInput.scrollIntoViewIfNeeded();
             await shipmentInput.fill(shipmentID);
@@ -521,13 +486,18 @@ class ContinuousPDFModifier {
             const applyButton = packlinkTab.locator('button[data-id="side-panel-footer-action"]');
             await applyButton.click();
             console.log('✅ Clicked apply button');
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
-            // Step 8: Click see details button
+            // Click see details button, check for null 
             const seeDetailsButton = packlinkTab.locator('button[data-id="shipment-row-see-details-button"]');
-            await seeDetailsButton.click();
-            console.log('✅ Clicked see details button');
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            if (seeDetailsButton) {
+                await seeDetailsButton.click();
+                console.log('✅ Clicked see details button');
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            } else {
+                console.log('❌ See details button not found');
+                return false;
+            }
 
             // Get tracking carrier section text
             const trackingCarrierSection = packlinkTab.locator('ul[data-id="tracking-carrier-section"]');
@@ -540,13 +510,19 @@ class ContinuousPDFModifier {
             console.log('✅ Clicked print label button');
             await new Promise(resolve => setTimeout(resolve, 7000));
 
-            // Step 9: Go back to Shopify tab and fill form
+            // Go back to Shopify tab and fill form
             shopifyTab.bringToFront();
             console.log('📂 Switched to Shopify tab');
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             // Re-fetch iframe to access the form elements
             const iframeForm = shopifyTab.frameLocator('iframe[name="app-iframe"]');
+
+            // Set carrier select to LaPoste first
+            const carrierSelect = iframeForm.locator('select#carrierselect');
+            await carrierSelect.scrollIntoViewIfNeeded();
+            await carrierSelect.selectOption({ value: 'laposte' });
+            console.log('✅ Set carrier to LaPoste');
 
             // Fill tracking input
             const trackingInput = iframeForm.locator('input[id="trackinginput"]');
@@ -555,22 +531,12 @@ class ContinuousPDFModifier {
             console.log(`✅ Filled tracking input: ${carrierText?.trim()}`);
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // Set carrier select to LaPoste
-            const carrierSelect = iframeForm.locator('select#carrierselect');
-            await carrierSelect.scrollIntoViewIfNeeded();
-            await carrierSelect.selectOption({ value: 'laposte' });
-            console.log('✅ Set carrier to LaPoste');
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log(`✅ Successfully processed shipment ID: ${shipmentID}`);
 
-            // Step 10: Switch back to Packlink tab
+            // Switch back to Packlink tab
             packlinkTab.bringToFront();
             console.log('📂 Switched back to Packlink tab');
 
-            // Keep tabs open and return true for now
-            // Note: We're not closing tabs here to allow user to see the results
-            console.log(`✅ Successfully processed shipment ID: ${shipmentID}`);
-
-            // Do not close the tabs
             return true;
 
         } catch (error) {
@@ -579,16 +545,167 @@ class ContinuousPDFModifier {
         }
     }
 
+    async setupShopifyButtonListener(shopifyTab) {
+        // Only expose function if not already exposed
+        if (!this.functionExposed) {
+            console.log('🔧 Exposing triggerShipmentProcessing function...');
+            // Expose a function to be called from the page
+            await shopifyTab.exposeFunction('triggerShipmentProcessing', async () => {
+                // Extract shipment ID from iframe
+                const iframe = shopifyTab.frameLocator('iframe[name="app-iframe"]');
+                const h1Locator = iframe.locator('h1.Polaris-Header-Title.Polaris-Header-Title__TitleWithSubtitle');
+                const shipmentID = await h1Locator.textContent();
+                const cleanShipmentID = shipmentID ? shipmentID.replace('#', '').trim() : null;
+
+                console.log(`\n🎯 Processing shipment triggered: ${cleanShipmentID}`);
+
+                if (!cleanShipmentID) {
+                    console.log('❌ Could not extract shipment ID');
+                    return;
+                }
+
+                await this.processShipmentFromOrderPage(cleanShipmentID);
+
+                // Navigate back to Shopify homepage after processing
+                console.log('🏠 Navigating back to Shopify homepage...');
+                await shopifyTab.goto(config.shopify.homeUrl);
+            });
+            this.functionExposed = true;
+        }
+
+        await this.setupButtonOnly(shopifyTab);
+    }
+
+    async setupButtonOnly(shopifyTab) {
+        // Check if we're on an order page before setting up button
+        const currentUrl = shopifyTab.url();
+        console.log('🔘 Checking URL for button setup:', currentUrl);
+
+        if (!currentUrl.includes('/orders/')) {
+            console.log('⏭️ Not on order page, removing button if exists...');
+            // Remove existing button if we navigate away from order page
+            await shopifyTab.evaluate(() => {
+                const existingButton = document.getElementById('packlink-automation-btn');
+                if (existingButton) {
+                    console.log('🗑️ Removing existing button');
+                    existingButton.remove();
+                }
+            });
+            return;
+        }
+
+        console.log('🔘 Setting up automation button on order page...');
+        //wait for 3 seconds
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Check if h1 element exists in iframe before creating button
+        try {
+            const iframe = shopifyTab.frameLocator('iframe[name="app-iframe"]');
+            const h1Locator = iframe.locator('h1.Polaris-Header-Title.Polaris-Header-Title__TitleWithSubtitle');
+            const count = await h1Locator.count();
+
+            if (count === 0) {
+                console.log('⏭️ H1 element not found yet, removing button if exists...');
+                await shopifyTab.evaluate(() => {
+                    const existingButton = document.getElementById('packlink-automation-btn');
+                    if (existingButton) {
+                        console.log('🗑️ Removing existing button');
+                        existingButton.remove();
+                    }
+                });
+                return;
+            }
+
+            console.log('✅ H1 element found, creating button...');
+        } catch (error) {
+            console.log('⏭️ Error checking for h1 element:', error.message);
+            return;
+        }
+
+        // Add button to page for triggering automation
+        await shopifyTab.evaluate(() => {
+            console.log('🔧 Starting button setup...');
+            console.log('📄 Current URL:', window.location.href);
+
+            // Remove existing button if it exists
+            const existingButton = document.getElementById('packlink-automation-btn');
+            if (existingButton) {
+                console.log('🗑️ Removing existing button');
+                existingButton.remove();
+            }
+
+            // Function to process shipment
+            const processShipment = async () => {
+                console.log('🔘 Process button clicked!');
+
+                const currentUrl = window.location.href;
+                console.log('🌐 Current URL:', currentUrl);
+
+                // Check if we're on an order details page
+                if (currentUrl.includes('/orders/')) {
+                    console.log('🔍 Order page detected, extracting shipment ID...');
+
+                    // Call exposed function to get shipment ID from iframe
+                    if (window.triggerShipmentProcessing) {
+                        console.log('🚀 Calling triggerShipmentProcessing...');
+                        // We'll get the shipment ID from the iframe in the exposed function
+                        await window.triggerShipmentProcessing(null);
+                    } else {
+                        console.log('❌ triggerShipmentProcessing not available');
+                    }
+                } else {
+                    console.log('⚠️ Not on an order details page, current URL:', currentUrl);
+                }
+            };
+
+            // Create button
+            const button = document.createElement('button');
+            button.id = 'packlink-automation-btn';
+            button.textContent = 'Process with Packlink';
+            button.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 999999;
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            `;
+
+            // Add hover effect
+            button.addEventListener('mouseenter', () => {
+                button.style.background = '#0056b3';
+                button.style.transform = 'scale(1.05)';
+            });
+            button.addEventListener('mouseleave', () => {
+                button.style.background = '#007bff';
+                button.style.transform = 'scale(1)';
+            });
+
+            // Add click handler
+            button.addEventListener('click', processShipment);
+
+            // Append to body
+            document.body.appendChild(button);
+
+            console.log('✅ Process button added to page');
+            console.log('📊 Document ready state:', document.readyState);
+            console.log('🔗 triggerShipmentProcessing available:', typeof window.triggerShipmentProcessing !== 'undefined');
+        });
+
+        console.log('✅ Button setup completed');
+    }
+
     async runShipmentAutomation() {
         try {
             console.log('\n🚀 Starting shipment automation...');
-
-            // Load shipment IDs
-            const shipmentIDs = await this.loadShipmentIDs();
-            if (shipmentIDs.length === 0) {
-                console.log('📋 No shipment IDs to process');
-                return;
-            }
 
             // Ensure Shopify login
             const shopifyTab = await this.ensureShopifyLoggedIn();
@@ -596,19 +713,20 @@ class ContinuousPDFModifier {
                 console.log('❌ Failed to login to Shopify, aborting automation');
                 return;
             }
-            //don't close the shopifyTab 
 
-            // Process each shipment
-            for (const shipmentID of shipmentIDs) {
-                const success = await this.processShipment(shipmentID);
-                if (!success) {
-                    console.log(`⚠️ Failed to process shipment ID: ${shipmentID}`);
-                }
-                // Wait between shipments
-                await new Promise(resolve => setTimeout(resolve, 2000));
-            }
+            // Setup button on the Shopify tab
+            await this.setupShopifyButtonListener(shopifyTab);
 
-            console.log('\n✅ Shipment automation completed');
+            // Monitor for navigation to re-setup button
+            shopifyTab.on('framenavigated', async () => {
+                // Re-setup button after navigation
+                await this.setupShopifyButtonListener(shopifyTab);
+            });
+
+            console.log('✅ Shipment automation ready. Navigate to an order page and click the "Process with Packlink" button.');
+
+            // Keep the process running
+            await new Promise(() => { });
 
         } catch (error) {
             console.error('❌ Error in shipment automation:', error.message);
