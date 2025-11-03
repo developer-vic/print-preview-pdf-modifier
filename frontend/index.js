@@ -562,9 +562,9 @@ class ContinuousPDFModifier {
 
                 await this.processShipmentFromOrderPage(cleanShipmentID);
 
-                // Navigate back to Shopify homepage after processing
-                console.log('🏠 Navigating back to Shopify homepage...');
-                await shopifyTab.goto(config.shopify.homeUrl);
+                // DO NOT Navigate back to Shopify homepage after processing
+                // console.log('🏠 Navigating back to Shopify homepage...');
+                // await shopifyTab.goto(config.shopify.homeUrl);
             });
             this.functionExposed = true;
         }
