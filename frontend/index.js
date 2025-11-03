@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const fs = require('fs-extra');
 const FormData = require('form-data');
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+const { exec } = require('child_process');
 const config = require('./config');
 
 class ContinuousPDFModifier {
@@ -455,9 +456,6 @@ class ContinuousPDFModifier {
                 return false;
             }
 
-            // Switch to iframe on current order page
-            const iframe = shopifyTab.frameLocator('iframe[name="app-iframe"]');
-
             // Wait a bit for page to be ready
             await new Promise(resolve => setTimeout(resolve, 3000));
 
@@ -510,6 +508,23 @@ class ContinuousPDFModifier {
             console.log('✅ Clicked print label button');
             await new Promise(resolve => setTimeout(resolve, 7000));
 
+            // Press ENTER key using CMD via terminal command (AppleScript)
+            // Print preview dialog is auto-focused, so we don't call bringToFront()
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Use AppleScript to send CMD+Enter key combination
+            await new Promise((resolve) => {
+                exec('osascript -e \'tell application "System Events" to keystroke return using command down\'', (error, stdout, stderr) => {
+                    if (error) {
+                        console.error('❌ Error sending CMD+ENTER via terminal:', error.message);
+                    } else {
+                        console.log('✅ Pressed CMD+ENTER key via terminal command');
+                    }
+                    // Continue regardless of success/failure
+                    setTimeout(resolve, 3000);
+                });
+            });
+
             // Go back to Shopify tab and fill form
             shopifyTab.bringToFront();
             console.log('📂 Switched to Shopify tab');
@@ -518,18 +533,18 @@ class ContinuousPDFModifier {
             // Re-fetch iframe to access the form elements
             const iframeForm = shopifyTab.frameLocator('iframe[name="app-iframe"]');
 
-            // Set carrier select to LaPoste first
-            const carrierSelect = iframeForm.locator('select#carrierselect');
-            await carrierSelect.scrollIntoViewIfNeeded();
-            await carrierSelect.selectOption({ value: 'laposte' });
-            console.log('✅ Set carrier to LaPoste');
-
             // Fill tracking input
             const trackingInput = iframeForm.locator('input[id="trackinginput"]');
             await trackingInput.scrollIntoViewIfNeeded();
             await trackingInput.fill(carrierText?.trim() || '');
             console.log(`✅ Filled tracking input: ${carrierText?.trim()}`);
             await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Set carrier select to LaPoste first
+            const carrierSelect = iframeForm.locator('select#carrierselect');
+            await carrierSelect.scrollIntoViewIfNeeded();
+            await carrierSelect.selectOption({ value: 'laposte' });
+            console.log('✅ Set carrier to LaPoste');
 
             console.log(`✅ Successfully processed shipment ID: ${shipmentID}`);
 
