@@ -411,7 +411,7 @@ class ContinuousPDFModifier {
                 console.log('🔐 Shopify cookies expired, attempting fresh login...');
                 const loginSuccess = await this.loginToShopify(shopifyTab);
                 if (!loginSuccess) {
-                    await shopifyTab.close();
+                    //await shopifyTab.close();
                     return null;
                 }
             }
@@ -421,7 +421,7 @@ class ContinuousPDFModifier {
             if (finalUrl.includes(config.shopify.loginUrl) ||
                 finalUrl.includes(config.shopify.loginUrl2)) {
                 console.log('❌ Shopify login verification failed');
-                await shopifyTab.close();
+                //await shopifyTab.close();
                 return null;
             }
 
@@ -532,10 +532,6 @@ class ContinuousPDFModifier {
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             console.log(`✅ Successfully processed shipment ID: ${shipmentID}`);
-
-            // Switch back to Packlink tab
-            packlinkTab.bringToFront();
-            console.log('📂 Switched back to Packlink tab');
 
             return true;
 
