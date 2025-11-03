@@ -1,6 +1,6 @@
 {
   "name": "print-preview-pdf-modifier",
-  "version": "7.0.0",
+  "version": "8.0.0",
   "description": "Full-stack PDF modifier with backend API and frontend automation. Enhanced ShipEngine support and unified auto-print behavior.",
   "main": "server.js",
   "scripts": {

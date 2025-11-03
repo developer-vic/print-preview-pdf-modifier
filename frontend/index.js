@@ -506,7 +506,7 @@ class ContinuousPDFModifier {
             const printButton = packlinkTab.locator('button[data-id="print-label-button"]');
             await printButton.click();
             console.log('✅ Clicked print label button');
-            await new Promise(resolve => setTimeout(resolve, 7000));
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
             // Press ENTER key using CMD via terminal command (AppleScript)
             // Print preview dialog is auto-focused, so we don't call bringToFront()
@@ -521,7 +521,7 @@ class ContinuousPDFModifier {
                         console.log('✅ Pressed CMD+ENTER key via terminal command');
                     }
                     // Continue regardless of success/failure
-                    setTimeout(resolve, 3000);
+                    setTimeout(resolve, 1000);
                 });
             });
 
@@ -546,8 +546,10 @@ class ContinuousPDFModifier {
             await carrierSelect.selectOption({ value: 'laposte' });
             console.log('✅ Set carrier to LaPoste');
 
-            console.log(`✅ Successfully processed shipment ID: ${shipmentID}`);
+            packlinkTab.close();
+            console.log('✅ Closed Packlink tab');
 
+            console.log(`✅ Successfully processed shipment ID: ${shipmentID}`);
             return true;
 
         } catch (error) {
