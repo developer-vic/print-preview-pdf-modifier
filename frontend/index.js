@@ -506,24 +506,54 @@ class ContinuousPDFModifier {
             const printButton = packlinkTab.locator('button[data-id="print-label-button"]');
             await printButton.click();
             console.log('✅ Clicked print label button');
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 4000));
 
-            // Press ENTER key using CMD via terminal command (AppleScript)
+            // Press ENTER key using platform-specific commands
             // Print preview dialog is auto-focused, so we don't call bringToFront()
             await new Promise(resolve => setTimeout(resolve, 500));
             
-            // Use AppleScript to send CMD+Enter key combination
-            await new Promise((resolve) => {
-                exec('osascript -e \'tell application "System Events" to keystroke return using command down\'', (error, stdout, stderr) => {
-                    if (error) {
-                        console.error('❌ Error sending CMD+ENTER via terminal:', error.message);
-                    } else {
-                        console.log('✅ Pressed CMD+ENTER key via terminal command');
-                    }
-                    // Continue regardless of success/failure
-                    setTimeout(resolve, 1000);
+            // Detect OS and execute appropriate command
+            const platform = process.platform;
+            
+            if (platform === 'darwin') {
+                // macOS: Use AppleScript to send CMD+Enter key combination
+                await new Promise((resolve) => {
+                    exec('osascript -e \'tell application "System Events" to keystroke return using command down\'', (error, stdout, stderr) => {
+                        if (error) {
+                            console.error('❌ Error sending CMD+ENTER via terminal:', error.message);
+                        } else {
+                            console.log('✅ Pressed CMD+ENTER key via terminal command (macOS)');
+                        }
+                        // Continue regardless of success/failure
+                        setTimeout(resolve, 1000);
+                    });
                 });
-            });
+            } else if (platform === 'win32') {
+                // Windows: Use PowerShell to send ENTER key
+                await new Promise((resolve) => {
+                    exec('powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{ENTER}\')"', (error, stdout, stderr) => {
+                        if (error) {
+                            console.error('❌ Error sending ENTER via PowerShell with SendKeys:', error.message);
+                            exec('powershell -command "$wshell = New-Object -ComObject wscript.shell; $wshell.SendKeys(\'{ENTER}\')"', (error, stdout, stderr) => {
+                                if (error) {
+                                    console.error('❌ Error sending ENTER via PowerShell with wscript.shell:', error.message);
+                                } else {
+                                    console.log('✅ Pressed ENTER key via PowerShell (Windows) with wscript.shell');
+                                }
+                                setTimeout(resolve, 1000);
+                            });
+                        } else {
+                            console.log('✅ Pressed ENTER key via PowerShell (Windows) with SendKeys');
+                        }
+                        // Continue regardless of success/failure
+                        setTimeout(resolve, 1000);
+                    });
+                });
+            } else {
+                console.log('⚠️ Unsupported platform for key press automation:', platform);
+                // Continue anyway
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
 
             // Go back to Shopify tab and fill form
             shopifyTab.bringToFront();
