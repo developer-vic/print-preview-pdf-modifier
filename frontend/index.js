@@ -464,27 +464,32 @@ class ContinuousPDFModifier {
             this.initPageInterceptor(packlinkTab);
             console.log('📂 Opened new tab for Packlink');
 
-            await packlinkTab.goto(config.urls.main);
+            // await packlinkTab.goto(config.urls.main);
+            // await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // // Click filter button
+            // const filterButton = await packlinkTab.locator('span[data-id="ICON-FILTER"]');
+            // await filterButton.click();
+            // console.log('✅ Clicked filter button');
+            // await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // // Enter shipment ID in filter
+            // const shipmentInput = packlinkTab.locator('input[id="shipment_custom_reference"]');
+            // await shipmentInput.scrollIntoViewIfNeeded();
+            // await shipmentInput.fill(shipmentID);
+            // console.log(`✅ Entered shipment ID: ${shipmentID}`);
+            // await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // // Click apply button
+            // const applyButton = packlinkTab.locator('button[data-id="side-panel-footer-action"]');
+            // await applyButton.click();
+            // console.log('✅ Clicked apply button');
+            // await new Promise(resolve => setTimeout(resolve, 2000));
+
+            //https://pro.packlink.fr/private/shipments/ready-for-shipping?shipment_custom_reference=169843
+            const shipmentUrl = `https://pro.packlink.fr/private/shipments/ready-for-shipping?shipment_custom_reference=${shipmentID}`;
+            await packlinkTab.goto(shipmentUrl);
             await new Promise(resolve => setTimeout(resolve, 3000));
-
-            // Click filter button
-            const filterButton = await packlinkTab.locator('span[data-id="ICON-FILTER"]');
-            await filterButton.click();
-            console.log('✅ Clicked filter button');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Enter shipment ID in filter
-            const shipmentInput = packlinkTab.locator('input[id="shipment_custom_reference"]');
-            await shipmentInput.scrollIntoViewIfNeeded();
-            await shipmentInput.fill(shipmentID);
-            console.log(`✅ Entered shipment ID: ${shipmentID}`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Click apply button
-            const applyButton = packlinkTab.locator('button[data-id="side-panel-footer-action"]');
-            await applyButton.click();
-            console.log('✅ Clicked apply button');
-            await new Promise(resolve => setTimeout(resolve, 2000));
 
             // Click see details button, check for null 
             const seeDetailsButton = packlinkTab.locator('button[data-id="shipment-row-see-details-button"]');
