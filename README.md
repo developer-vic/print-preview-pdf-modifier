@@ -24,12 +24,14 @@ This tool automatically intercepts PDF files when they are accessed online, extr
 - **Carrier Management**: Automatically sets carrier to LaPoste in Shopify
 - **Tab Management**: Opens multiple tabs in the same browser window
 - **Event-Driven**: Button appears automatically when viewing order details
+- **Direct Shipment Deep-Linking**: Jumps straight to the Packlink shipment detail view without manual filtering
 
 ### 🖨️ Unified Auto-Print Behavior
 - **Consistent Experience**: All PDFs automatically trigger print dialog after modification
 - **Simplified Logic**: Streamlined processing pipeline
 - **Better Reliability**: No dependency on finding specific print buttons
 - **Faster Execution**: Optimized delays and retry logic
+- **Cross-Platform Key Press**: Uses AppleScript on macOS and PowerShell on Windows to confirm the print dialog
 
 ### 🔧 PDF Processing
 - **Enhanced Error Handling**: Better logging and debugging capabilities
@@ -175,7 +177,7 @@ npm run frontend:dev
 2. **Shopify Setup**: A "Process with Packlink" button appears on order detail pages
 3. **On-Demand Processing**: When button is clicked on an order page:
    - Extracts shipment ID from order page header
-   - Opens Packlink tab and filters by shipment ID
+   - Opens Packlink tab and navigates directly to the shipment via deep link
    - Extracts tracking number from carrier section
    - Triggers print of shipping label
    - Returns to Shopify order page and fills tracking number + sets carrier to LaPoste
